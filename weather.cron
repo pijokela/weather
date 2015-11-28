@@ -1,0 +1,7 @@
+# /etc/cron.d/weather: crontab entries for the weather application running in port 9000
+# copy this to /etc/cron.d
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+* * * * *   root	wget -O- http://localhost:9000/measure >/dev/null
