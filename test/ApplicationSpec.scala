@@ -61,5 +61,24 @@ class ApplicationSpec extends Specification {
       val ds1 = (r \ "datasets").as[JsArray].value.head 
       (ds1 \ "label").as[JsString].value must equalTo("outside")
     }
+    
+    "group results hourly and with no groups" in  new WithApplication{
+      val testTime = new DateTime
+      val m = TemperatureMeasurement(1234, testTime, "outside", 12345)
+      val r = ChartData.fromMeasurements(List(m), Some("hourly"))
+      
+      r.fields.toMap.keys.toList must equalTo("labels" :: "datasets" :: Nil)
+      (r \ "labels").as[JsArray] must equalTo(Json.arr(testTime.toString("yyyy-MM-dd'T'HH-mm-ss")))
+      val ds1 = (r \ "datasets").as[JsArray].value.head 
+      (ds1 \ "label").as[JsString].value must equalTo("outside")
+      
+      val r2 = ChartData.fromMeasurements(List(m), Some("none"))
+      
+      r2.fields.toMap.keys.toList must equalTo("labels" :: "datasets" :: Nil)
+      (r2 \ "labels").as[JsArray] must equalTo(Json.arr(testTime.toString("yyyy-MM-dd'T'HH-mm-ss")))
+      val ds12 = (r2 \ "datasets").as[JsArray].value.head 
+      (ds12 \ "label").as[JsString].value must equalTo("outside")
+    }
+    
   }
 }

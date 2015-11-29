@@ -32,11 +32,16 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
     }
   }
   
-  def data = Action.async { request =>
-    temperatureDao.list(20).map { temperatures => 
-      val data = ChartData.fromMeasurements(temperatures)
-      Ok(data)
-    }
+  def data(grouping: Option[String]) = Action.async { request =>
+    if (grouping.isDefined && !ChartData.groupings.contains(grouping.get))
+      Future.successful(
+        BadRequest(s"Grouping $grouping is not valid. Valid groupings are ${ChartData.groupings}")
+      )
+    else
+      temperatureDao.listToday.map { temperatures => 
+        val data = ChartData.fromMeasurements(temperatures, grouping)
+        Ok(data)
+      }
   }
   
   def measure = Action.async { request =>

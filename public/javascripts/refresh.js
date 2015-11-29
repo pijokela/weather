@@ -7,7 +7,7 @@ Chart.defaults.global.responsive = true;
 
 $( document ).ready(function(){
   $.ajax({
-    url: '/data', 
+    url: '/data?grouping=hourly', 
     success: function(data) {
       $('#messages').html("");
       createChart(data);
