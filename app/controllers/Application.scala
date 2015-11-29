@@ -14,17 +14,19 @@ import play.api.libs.json._
 
 class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration) extends Controller {
 
+  val jsonDatePattern = "yyyy-MM-dd'T'HH:mm:ss"
+  
   def index = Action.async { request =>
     temperatureDao.list.map { temperatures => 
       val json = temperatures.map { t => Json.obj(
-        "date" -> JsString(t.date.toString("yyyy-MM-dd'T'HH:mm:ss")),
+        "date" -> JsString(t.date.toString(jsonDatePattern)),
         "deviceId" -> JsString(t.deviceId),
         "temperature" -> JsNumber(t.milliC / 1000.0)
       ) }
       Ok(JsArray(json))
     }
   }
-
+  
   def measure = Action.async { request =>
     
     val file = new File(configuration.getString("w1devices.dir", None).getOrElse(throw new Missing("w1devices.dir")))
