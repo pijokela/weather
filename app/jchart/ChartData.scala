@@ -40,6 +40,12 @@ object ChartData {
     fromMeasurements(data.filter(m=>groups.contains(m.date)))
   }
   
+  private val colors = Vector((151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),(205, 151, 187))
+  private def color(deviceId: String, opacity: Double): String = {
+    val tuple = colors(deviceId.hashCode() % colors.length)
+    s"rgba(${tuple._1},${tuple._2},${tuple._3},$opacity)"
+  }
+  
   /**
    * Push in a list of measurements and get a JSON document
    * you can send to the web page.
@@ -62,12 +68,12 @@ object ChartData {
       
       Json.obj(
         "label" -> deviceId,
-        "fillColor" -> "rgba(151,187,205,0.2)",
-        "strokeColor" -> "rgba(151,187,205,1)",
-        "pointColor" -> "rgba(151,187,205,1)",
+        "fillColor" -> color(deviceId, 0.2),
+        "strokeColor" -> color(deviceId, 1),
+        "pointColor" -> color(deviceId, 1),
         "pointStrokeColor" -> "#fff",
         "pointHighlightFill" -> "#fff",
-        "pointHighlightStroke" -> "rgba(151,187,205,1)",
+        "pointHighlightStroke" -> color(deviceId, 1),
         "data" -> datasetDataArray
       )
     }
