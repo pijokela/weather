@@ -10,6 +10,14 @@ Installation
 sudo apt-get install wget
 sudo apt-get install postgresql
 
+This will replace sysvinit so there is a huge warning message.
+It all went fine on my pi, so just accept it 
+(and reflash the memory card if it stops working).
+
+sudo apt-get install upstart
+
+sudo -u postgres psql postgres < db/create-db.sql
+
 sudo -u postgres psql postgres
 
 Set password with:
@@ -24,7 +32,9 @@ sudo chown -R pi:users /opt/weather-0.1
 sudo cp weather.conf /etc/init/
 
 sudo start weather
-tail -f /opt/weather-0.1/logs/???
+
+See that is starts working:
+sudo tail -f /var/log/upstart/weather.log
 
 Crontab timed measuring
 =======================

@@ -10,12 +10,18 @@ import com.typesafe.config.ConfigException.Missing
 import w1reader.W1Temperatures
 import org.joda.time.DateTime
 import scala.concurrent.Future
+import play.api.libs.json._
 
 class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration) extends Controller {
 
   def index = Action.async { request =>
     temperatureDao.list.map { temperatures => 
-      Ok("" + temperatures)
+      val json = temperatures.map { t => Json.obj(
+        "date" -> JsString(t.date.toString("yyyy-MM-dd'T'HH:mm:ss")),
+        "deviceId" -> JsString(t.deviceId),
+        "temperature" -> JsNumber(t.milliC / 1000.0)
+      ) }
+      Ok(JsArray(json))
     }
   }
 
