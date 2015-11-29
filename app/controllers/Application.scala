@@ -11,19 +11,31 @@ import w1reader.W1Temperatures
 import org.joda.time.DateTime
 import scala.concurrent.Future
 import play.api.libs.json._
+import jchart.ChartData
 
 class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration) extends Controller {
 
   val jsonDatePattern = "yyyy-MM-dd'T'HH:mm:ss"
   
-  def index = Action.async { request =>
-    temperatureDao.list.map { temperatures => 
+  def index = Action { 
+    Ok(views.html.index())
+  }
+  
+  def test = Action.async { request =>
+    temperatureDao.list(20).map { temperatures => 
       val json = temperatures.map { t => Json.obj(
         "date" -> JsString(t.date.toString(jsonDatePattern)),
         "deviceId" -> JsString(t.deviceId),
         "temperature" -> JsNumber(t.milliC / 1000.0)
       ) }
       Ok(JsArray(json))
+    }
+  }
+  
+  def data = Action.async { request =>
+    temperatureDao.list(20).map { temperatures => 
+      val data = ChartData.fromMeasurements(temperatures)
+      Ok(data)
     }
   }
   

@@ -15,7 +15,7 @@ import com.google.inject.ImplementedBy
 @ImplementedBy(classOf[TemperaturePostgresDao])
 trait TemperatureDao {
   def store(date: DateTime, deviceId: String, milliC: Int): Future[Int]
-  def list: Future[Seq[TemperatureMeasurement]]
+  def list(resultCount: Int = 20): Future[Seq[TemperatureMeasurement]]
 }
 
 case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int)
@@ -32,8 +32,8 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
     )
   }
   
-  override def list : Future[Seq[TemperatureMeasurement]] = {
-    db.run(measurements.result).map { tmDbSeq => 
+  override def list(resultCount: Int) : Future[Seq[TemperatureMeasurement]] = {
+    db.run(measurements.take(resultCount).result).map { tmDbSeq => 
       tmDbSeq.map { case (id, ts, deviceId, milliC) => 
         val dt = new DateTime(ts.getTime)
         TemperatureMeasurement(id, dt, deviceId, milliC)

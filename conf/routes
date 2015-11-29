@@ -2,9 +2,15 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# Home page
+# Home page with chart
 GET     /                           controllers.Application.index
 
+# Get data for chart
+GET		/data						controllers.Application.data
+# Dump JSON data for testing
+GET		/test						controllers.Application.data
+
+# Measure data and store results in database
 GET     /measure                    controllers.Application.measure
 
 # Map static resources from the /public folder to the /assets URL path
