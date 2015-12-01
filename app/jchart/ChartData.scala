@@ -40,7 +40,7 @@ class ChartData @Inject()(val configuration: Configuration) {
     fromMeasurements(data.filter(m=>groups.contains(m.date)))
   }
   
-  private val colors = Vector((151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),(205, 151, 187),(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63))
+  private val colors = Vector(/*(151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),*/(205, 151, 187),(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63))
   private val rand = new Random(System.currentTimeMillis())
   private val number = Math.abs(rand.nextInt())
   private def color(deviceId: String, opacity: Double): String = {
@@ -67,8 +67,8 @@ class ChartData @Inject()(val configuration: Configuration) {
       
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
-      val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
       
+      val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
       Json.obj(
         "label" -> deviceLabel,
         "fillColor" -> color(deviceId, 0.2),
