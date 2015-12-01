@@ -12,8 +12,9 @@ import org.joda.time.DateTime
 import scala.concurrent.Future
 import play.api.libs.json._
 import jchart.ChartData
+import jchart.ChartData
 
-class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration) extends Controller {
+class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration, val chartData: ChartData) extends Controller {
 
   val jsonDatePattern = "yyyy-MM-dd'T'HH:mm:ss"
   
@@ -33,13 +34,13 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
   }
   
   def data(grouping: Option[String]) = Action.async { request =>
-    if (grouping.isDefined && !ChartData.groupings.contains(grouping.get))
+    if (grouping.isDefined && !chartData.groupings.contains(grouping.get))
       Future.successful(
-        BadRequest(s"Grouping $grouping is not valid. Valid groupings are ${ChartData.groupings}")
+        BadRequest(s"Grouping $grouping is not valid. Valid groupings are ${chartData.groupings}")
       )
     else
       temperatureDao.listToday.map { temperatures => 
-        val data = ChartData.fromMeasurements(temperatures, grouping)
+        val data = chartData.fromMeasurements(temperatures, grouping)
         Ok(data)
       }
   }

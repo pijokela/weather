@@ -9,11 +9,11 @@ import play.api.libs.json.JsNumber
 import org.joda.time.DateTime
 import dao.TemperatureMeasurement
 import play.api.Logger
+import java.util.Random
+import play.api.Configuration
+import com.google.inject.Inject
 
-/**
- * @author pirkka
- */
-object ChartData {
+class ChartData @Inject()(val configuration: Configuration) {
   
   val groupings = "hourly" :: "none" :: Nil
   
@@ -40,9 +40,11 @@ object ChartData {
     fromMeasurements(data.filter(m=>groups.contains(m.date)))
   }
   
-  private val colors = Vector((151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),(205, 151, 187))
+  private val colors = Vector((151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),(205, 151, 187),(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63))
+  private val rand = new Random(System.currentTimeMillis())
+  private val number = Math.abs(rand.nextInt())
   private def color(deviceId: String, opacity: Double): String = {
-    val tuple = colors(deviceId.hashCode() % colors.length)
+    val tuple = colors(Math.abs(number * deviceId.hashCode) % colors.length)
     s"rgba(${tuple._1},${tuple._2},${tuple._3},$opacity)"
   }
   
@@ -65,9 +67,10 @@ object ChartData {
       
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
+      val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
       
       Json.obj(
-        "label" -> deviceId,
+        "label" -> deviceLabel,
         "fillColor" -> color(deviceId, 0.2),
         "strokeColor" -> color(deviceId, 1),
         "pointColor" -> color(deviceId, 1),
