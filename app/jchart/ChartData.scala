@@ -40,7 +40,7 @@ class ChartData @Inject()(val configuration: Configuration) {
     fromMeasurements(data.filter(m=>groups.contains(m.date)))
   }
   
-  private val colors = Vector(/*(151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),*/(205, 151, 187),(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63))
+  private val colors = Vector(/*(151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),*/(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63),(205, 151, 187))
   private val rand = new Random(System.currentTimeMillis())
   private val number = Math.abs(rand.nextInt())
   private def color(index: Int, opacity: Double): String = {
@@ -63,9 +63,8 @@ class ChartData @Inject()(val configuration: Configuration) {
     val labels = JsArray(labelList)
     
     var index = 0;
-    def nextIndex : Int = {
+    def nextIndex() : Unit = {
       index = index + 1
-      index - 1
     }
     
     val dataByDevice = data.groupBy { m => m.deviceId }.toList
@@ -75,9 +74,9 @@ class ChartData @Inject()(val configuration: Configuration) {
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
       
       val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
-      Json.obj(
+      val json = Json.obj(
         "label" -> deviceLabel,
-        "fillColor" -> color(nextIndex, 0.2),
+        "fillColor" -> color(index, 0.2),
         "strokeColor" -> color(index, 1),
         "pointColor" -> color(index, 1),
         "pointStrokeColor" -> "#fff",
@@ -85,6 +84,8 @@ class ChartData @Inject()(val configuration: Configuration) {
         "pointHighlightStroke" -> color(index, 1),
         "data" -> datasetDataArray
       )
+      nextIndex()
+      json
     }
     
     val datasets = JsArray(datasetList)
