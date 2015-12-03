@@ -36,7 +36,7 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
   
   def data(time: Option[String], grouping: Option[String]) = Action.async { request =>
     val validTime = time.getOrElse(temperatureDao.times.head)
-    val validGrouping = grouping.getOrElse(chartData.selectGroupingForTime(validTime))
+    val validGrouping = chartData.selectGroupingForTime(validTime)
     Logger.info("Got time: " + time + " --> " + validTime)
     temperatureDao.list(validTime).map { temperatures => 
       val data = chartData.fromMeasurements(temperatures, validGrouping)
