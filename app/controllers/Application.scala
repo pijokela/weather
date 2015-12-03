@@ -13,6 +13,7 @@ import scala.concurrent.Future
 import play.api.libs.json._
 import jchart.ChartData
 import jchart.ChartData
+import dao.TemperatureDao
 
 class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration, val chartData: ChartData) extends Controller {
 
@@ -33,16 +34,14 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
     }
   }
   
-  def data(grouping: Option[String]) = Action.async { request =>
-    if (grouping.isDefined && !chartData.groupings.contains(grouping.get))
-      Future.successful(
-        BadRequest(s"Grouping $grouping is not valid. Valid groupings are ${chartData.groupings}")
-      )
-    else
-      temperatureDao.listToday.map { temperatures => 
-        val data = chartData.fromMeasurements(temperatures, grouping)
-        Ok(data)
-      }
+  def data(time: Option[String], grouping: Option[String]) = Action.async { request =>
+    val validTime = time.getOrElse(temperatureDao.times.head)
+    val validGrouping = grouping.getOrElse(chartData.selectGroupingForTime(validTime))
+    Logger.info("Got time: " + time + " --> " + validTime)
+    temperatureDao.list(validTime).map { temperatures => 
+      val data = chartData.fromMeasurements(temperatures, validGrouping)
+      Ok(data)
+    }
   }
   
   def measure = Action.async { request =>

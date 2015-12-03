@@ -9,10 +9,9 @@ Chart.defaults.global.scaleLabel = "<%=value%> C";
 Chart.defaults.global.multiTooltipTemplate = "<%= datasetLabel %> - <%= value %>"
 Chart.defaults.global.legendTemplate = "<ul class=\"<%=name.toLowerCase()%>-legend\"><% for (var i=0; i<datasets.length; i++){%><li><span style=\"background-color:<%=datasets[i].fillColor%>\"></span><%if(datasets[i].label){%><%=datasets[i].label%><%}%></li><%}%></ul>";
 
-
-$( document ).ready(function(){
+function loadData(timeframe) {
   $.ajax({
-    url: '/data?grouping=hourly', 
+    url: '/data?time=' + timeframe,
     success: function(data) {
       $('#messages').html("");
       createChart(data);
@@ -21,4 +20,14 @@ $( document ).ready(function(){
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
     }
   });
+}
+
+
+function onHashChange() {
+  var hash = location.hash;
+  loadData(hash.substring(1));
+}
+
+$( document ).ready(function(){
+  loadData("previous24h");
 });

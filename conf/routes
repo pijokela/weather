@@ -6,7 +6,7 @@
 GET     /                           controllers.Application.index
 
 # Get data for chart
-GET		/data						controllers.Application.data(grouping: Option[String])
+GET		/data						controllers.Application.data(time: Option[String], grouping: Option[String])
 # Dump JSON data for testing
 GET		/test						controllers.Application.test
 

@@ -17,8 +17,14 @@ class ChartData @Inject()(val configuration: Configuration) {
   
   val groupings = "hourly" :: "none" :: Nil
   
+  val selectGroupingForTime: Map[String, String] = Map(
+      "weekly" -> "4daily"
+    ).withDefaultValue("hourly")
+  
   val groupingFunctions: Map[String, (Seq[TemperatureMeasurement])=>Seq[DateTime]] = Map(
       "hourly" -> createHourGroups,
+      "4daily" -> create4DailyGroups,
+      "daily" -> createDailyGroups,
       "none" -> createNoGroups
     )
   
@@ -30,12 +36,35 @@ class ChartData @Inject()(val configuration: Configuration) {
     }.toSeq
   }
   
+  private def createDailyGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
+    val allDates = data.map(_.date).toSet
+    val hourGroups = allDates.groupBy(_.toString("yyyy-MM-dd")).values
+    hourGroups.map { dateTimes =>
+      dateTimes.minBy(_.getMillis)
+    }.toSeq
+  }
+  
+  private def create4DailyGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
+    def last2Letters(s: String): String = s.substring(s.length() - 2, 2)
+    val selectedHours = "03" :: "09" :: "15" :: "21" :: Nil
+    
+    val allDates = data.map(_.date).toSet
+    val hourGroups = allDates
+      .groupBy(_.toString("yyyy-MM-dd'T'HH"))
+      .filter { case (k, v) => selectedHours.contains(last2Letters(k)) }
+      .values
+    
+    hourGroups.map { dateTimes =>
+      dateTimes.minBy(_.getMillis)
+    }.toSeq
+  }
+  
   private def createNoGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
     data.map(_.date)
   }
   
-  def fromMeasurements(data : Seq[TemperatureMeasurement], grouping: Option[String]): JsObject = {
-    val groups = groupingFunctions(grouping.getOrElse("none"))(data)
+  def fromMeasurements(data : Seq[TemperatureMeasurement], grouping: String): JsObject = {
+    val groups = groupingFunctions(grouping)(data)
     Logger.info(s"Grouping is $grouping --> $groups from data.size: ${data.size}")
     fromMeasurements(data.filter(m=>groups.contains(m.date)))
   }

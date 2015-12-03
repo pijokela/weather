@@ -12,7 +12,7 @@
     <script src="@routes.Assets.versioned("javascripts/Chart.min.js")"></script>
     <script src="@routes.Assets.versioned("javascripts/refresh.js")" type="text/javascript"></script>
   </head>
-  <body>
+  <body onhashchange="onHashChange();">
     @content
   </body>
 </html>

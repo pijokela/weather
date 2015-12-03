@@ -9,13 +9,16 @@ import org.joda.time.DateTime
 import java.sql.Timestamp
 import play.api.libs.concurrent.Execution.Implicits._
 import scala.concurrent.Future
-
 import com.google.inject.ImplementedBy
+import play.api.Logger
 
 @ImplementedBy(classOf[TemperaturePostgresDao])
 trait TemperatureDao {
+  val times = "previous24h" :: "yesterday" :: "rollingWeek" :: Nil
+  
   def store(date: DateTime, deviceId: String, milliC: Int): Future[Int]
   def list(resultCount: Int = 20): Future[Seq[TemperatureMeasurement]]
+  def list(time: String): Future[Seq[TemperatureMeasurement]]
   def listToday: Future[Seq[TemperatureMeasurement]]
 }
 
@@ -38,6 +41,35 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
     val startOfToday = new Timestamp(now.withMillisOfDay(0).getMillis)
     
     db.run(measurements.filter(_.date > startOfToday).result).map { tmDbSeq => 
+      tmDbSeq.map { case (id, ts, deviceId, milliC) => 
+        val dt = new DateTime(ts.getTime)
+        TemperatureMeasurement(id, dt, deviceId, milliC)
+      }
+    }
+  }
+  
+  private def ts(dateTime: DateTime): Timestamp = new Timestamp(dateTime.getMillis)
+  
+  private def getStartAndEnd(time: String, now: DateTime): (DateTime, DateTime) = {
+    time match {
+      case "previous24h" => (now.minusDays(1), now)
+      case "yesterday" => {
+        val startOfToday = now.withMillisOfDay(0)
+        (startOfToday.minusDays(1), startOfToday)
+      }
+      case "rollingWeek" => (now.minusWeeks(1), now)
+      case _ => {
+        Logger.info("Unknown time: " + time) 
+        (now.minusDays(1), now)
+      }
+    }
+  }
+  
+  override def list(time: String): Future[Seq[TemperatureMeasurement]] = {
+    val now = DateTime.now()
+    val (start, end) = getStartAndEnd(time, now)
+    
+    db.run(measurements.filter(_.date > ts(start)).filter(_.date < ts(end)).result).map { tmDbSeq => 
       tmDbSeq.map { case (id, ts, deviceId, milliC) => 
         val dt = new DateTime(ts.getTime)
         TemperatureMeasurement(id, dt, deviceId, milliC)
