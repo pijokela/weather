@@ -18,7 +18,7 @@ class ChartData @Inject()(val configuration: Configuration) {
   val groupings = "hourly" :: "none" :: Nil
   
   val selectGroupingForTime: Map[String, String] = Map(
-      "weekly" -> "4daily"
+      "rollingWeek" -> "4daily"
     ).withDefaultValue("hourly")
   
   val groupingFunctions: Map[String, (Seq[TemperatureMeasurement])=>Seq[DateTime]] = Map(
@@ -45,7 +45,9 @@ class ChartData @Inject()(val configuration: Configuration) {
   }
   
   private def create4DailyGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
-    def last2Letters(s: String): String = s.substring(s.length() - 2, 2)
+    def last2Letters(s: String): String = {
+      s.substring(s.length() - 2, s.length())
+    }
     val selectedHours = "03" :: "09" :: "15" :: "21" :: Nil
     
     val allDates = data.map(_.date).toSet
@@ -105,7 +107,7 @@ class ChartData @Inject()(val configuration: Configuration) {
       val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
       val json = Json.obj(
         "label" -> deviceLabel,
-        "fillColor" -> color(index, 0.2),
+        "fillColor" -> color(index, 0.4),
         "strokeColor" -> color(index, 1),
         "pointColor" -> color(index, 1),
         "pointStrokeColor" -> "#fff",

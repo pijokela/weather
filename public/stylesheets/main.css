@@ -1,3 +1,28 @@
 .content {
 	margin: 3em;
 }
+
+body {
+	background-color: black;
+	color: #ccc;
+	font-family: sans-serif;
+}
+
+a.selected {
+	color: #fff !important;
+	font-weight: bold;
+}
+
+a {
+	color: #eee;
+	text-decoration: none;
+}
+
+a:VISITED {
+	color: #ccc;
+}
+
+a:HOVER {
+	color: #fff;
+	text-decoration: underline;
+}

@@ -1,8 +1,15 @@
+_myNewChart = null;
+
 function createChart(data) {
+  if (_myNewChart != null) {
+	_myNewChart.destroy();
+  }
   var ctx = document.getElementById("chart1").getContext("2d");
-  var myNewChart = new Chart(ctx).Line(data);
+  _myNewChart = new Chart(ctx).Line(data);
 }
 
+Chart.defaults.global.animation = false;
+Chart.defaults.global.scaleFontColor = "#AAA";
 Chart.defaults.global.responsive = true;
 Chart.defaults.global.tooltipTemplate = "foo<%if (label){%><%=label%>: <%}%><%= value %>";
 Chart.defaults.global.scaleLabel = "<%=value%> C";
@@ -25,9 +32,18 @@ function loadData(timeframe) {
 
 function onHashChange() {
   var hash = location.hash;
-  loadData(hash.substring(1));
+  var time = hash.substring(1);
+  loadData(time);
+  $("div.links a").removeClass("selected");
+  $("div.links a." + time).addClass("selected");
 }
 
 $( document ).ready(function(){
-  loadData("previous24h");
+  var hash = location.hash;
+  if (hash == null || hash == "" || hash == "#") {
+	location.hash = "#previous24h";
+  } else {
+	// The page load does not trigger a "change"
+	onHashChange();
+  }
 });
