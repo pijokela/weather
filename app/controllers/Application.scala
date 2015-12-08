@@ -38,8 +38,15 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
     val validTime = time.getOrElse(temperatureDao.times.head)
     val validGrouping = chartData.selectGroupingForTime(validTime)
     Logger.info("Got time: " + time + " --> " + validTime)
-    temperatureDao.list(validTime).map { temperatures => 
-      val data = chartData.fromMeasurements(temperatures, validGrouping)
+    
+    val now = DateTime.now()
+    val (start, end) = temperatureDao.getStartAndEnd(validTime, now)
+    Logger.info("Got start and end: " + start + " " + end)
+    
+    temperatureDao.list(validTime, now).map { temperatures => 
+      Logger.info("Got data: " + temperatures.size)
+      val groupedTemps = temperatures.groupBy { t => t.deviceId }.toList
+      val data = chartData.fromMeasurements(start, end, groupedTemps, validGrouping)
       Ok(data)
     }
   }

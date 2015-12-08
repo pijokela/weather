@@ -18,7 +18,8 @@ trait TemperatureDao {
   
   def store(date: DateTime, deviceId: String, milliC: Int): Future[Int]
   def list(resultCount: Int = 20): Future[Seq[TemperatureMeasurement]]
-  def list(time: String): Future[Seq[TemperatureMeasurement]]
+  def list(time: String, now: DateTime): Future[Seq[TemperatureMeasurement]]
+  def getStartAndEnd(time: String, now: DateTime): (DateTime, DateTime)
   def listToday: Future[Seq[TemperatureMeasurement]]
 }
 
@@ -50,7 +51,7 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
   
   private def ts(dateTime: DateTime): Timestamp = new Timestamp(dateTime.getMillis)
   
-  private def getStartAndEnd(time: String, now: DateTime): (DateTime, DateTime) = {
+  def getStartAndEnd(time: String, now: DateTime): (DateTime, DateTime) = {
     time match {
       case "previous24h" => (now.minusDays(1), now)
       case "yesterday" => {
@@ -65,8 +66,7 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
     }
   }
   
-  override def list(time: String): Future[Seq[TemperatureMeasurement]] = {
-    val now = DateTime.now()
+  override def list(time: String, now: DateTime): Future[Seq[TemperatureMeasurement]] = {
     val (start, end) = getStartAndEnd(time, now)
     
     db.run(measurements.filter(_.date > ts(start)).filter(_.date < ts(end)).result).map { tmDbSeq => 
