@@ -148,8 +148,32 @@ object Labels {
     }
     
     val times = groupTimes(grouping.timeAfter(start.minusSeconds(1)), Nil)
-    times
-      .map { t => Label(t.toString("yyyy-MM-dd'T'HH-mm-ss"), t) }
-      .sortWith((t1, t2) => t1.pointInTime.isBefore(t2.pointInTime))
+      .sortWith((t1, t2) => t1.isBefore(t2))
+      
+    val yearChanges  = times.headOption.map(_.getYear) != times.reverse.headOption.map(_.getYear)
+    
+    // zip with previous:
+    val timesWithPrev = times zip None :: times.map(Some(_))
+      
+    timesWithPrev
+      .map { case (t, prev) =>
+        
+        val tstr = (t, prev) match {
+          case (t, None) if (yearChanges)  => "d.M.yyyy - HH'h'"
+          case (t, None) => "d.M - HH'h'"
+          case (t, Some(p)) if (yearChanges && t.getDayOfMonth != p.getDayOfMonth) => "d.M.yyyy - HH'h'"
+          case (t, Some(p)) if (t.getDayOfMonth != p.getDayOfMonth) => "d.M - HH'h'"
+          case (t, _) => "HH'h'"
+        }
+        
+        if (prev == None || t.getDayOfYear != prev.get.getDayOfYear) {
+          // If the day has changed, print the date
+          t.toString("MM-dd: HH'h'")
+        } else {
+          // Otherwise just print the hour
+          t.toString("HH'h'")
+        }
+        Label(t.toString(tstr), t)
+      }
   }
 }
