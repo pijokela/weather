@@ -85,6 +85,7 @@ trait Grouping {
    * A descriptive name of the grouping. Used as URL parameter.
    */
   def name: String
+  
   /**
    * Return the next labelled time after the time given as parameter.
    */
@@ -139,14 +140,14 @@ object Labels {
   def forTimeAndGrouping(grouping: Grouping, start: DateTime, end: DateTime): List[Label] = {
     Logger.info("Starting to find labels: " + grouping + " start: " + start + " end: " + end)
     @tailrec
-    def groupTimes(from: DateTime, toList: List[DateTime]): List[DateTime] = if (from.isAfter(end)) {
-      from :: toList
+    def groupTimes(from: DateTime, toList: List[DateTime]): List[DateTime] = if (from.isEqual(end) || from.isAfter(end)) {
+      toList
     } else {
       Logger.info("Finding labels: " + from + " --> " + toList.size)
       groupTimes(grouping.timeAfter(from), from :: toList)
     }
     
-    val times = groupTimes(grouping.timeAfter(start), Nil)
+    val times = groupTimes(grouping.timeAfter(start.minusSeconds(1)), Nil)
     times
       .map { t => Label(t.toString("yyyy-MM-dd'T'HH-mm-ss"), t) }
       .sortWith((t1, t2) => t1.pointInTime.isBefore(t2.pointInTime))
