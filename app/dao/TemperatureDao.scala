@@ -14,7 +14,7 @@ import play.api.Logger
 
 @ImplementedBy(classOf[TemperaturePostgresDao])
 trait TemperatureDao {
-  val times = "previous24h" :: "yesterday" :: "rollingWeek" :: Nil
+  val times = "previous24h" :: "yesterday" :: "rollingWeek" :: "rolling30days" :: Nil
   
   def store(date: DateTime, deviceId: String, milliC: Int): Future[Int]
   def list(resultCount: Int = 20): Future[Seq[TemperatureMeasurement]]
@@ -24,6 +24,23 @@ trait TemperatureDao {
 }
 
 case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int)
+
+object TemperatureMeasurement {
+  def findDailyMinimums(data: Seq[TemperatureMeasurement]): Seq[(DateTime, TemperatureMeasurement)] =
+    findDailySomething(data, (dailyData) => dailyData.minBy { tm => tm.milliC })
+
+  def findDailyMaximums(data: Seq[TemperatureMeasurement]): Seq[(DateTime, TemperatureMeasurement)] =
+    findDailySomething(data, (dailyData) => dailyData.maxBy { tm => tm.milliC })
+
+  private def findDailySomething(data: Seq[TemperatureMeasurement], 
+                         selector: (Seq[TemperatureMeasurement]) => TemperatureMeasurement): Seq[(DateTime, TemperatureMeasurement)] = 
+  {
+    val groupedDaily = data.groupBy { tm => tm.date.withMillisOfDay(0) }.toList
+    groupedDaily.map{case (d, dailyData) =>
+      (d, selector(dailyData))
+    }
+  }
+}
 
 class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseConfigProvider) extends TemperatureDao {
   val dbConfig = dbConfigProvider.get[JdbcProfile]
@@ -59,6 +76,7 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
         (startOfToday.minusDays(1), startOfToday)
       }
       case "rollingWeek" => (now.minusWeeks(1), now)
+      case "rolling30days" => (now.minusDays(30), now)
       case _ => {
         Logger.info("Unknown time: " + time) 
         (now.minusDays(1), now)

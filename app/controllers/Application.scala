@@ -46,7 +46,10 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
     temperatureDao.list(validTime, now).map { temperatures => 
       Logger.info("Got data: " + temperatures.size)
       val groupedTemps = temperatures.groupBy { t => t.deviceId }.toList
-      val data = chartData.fromMeasurements(start, end, groupedTemps, validGrouping)
+      val data = validTime match {
+        case "rolling30days" => chartData.dailyMinsAndMaxes(start, end, groupedTemps)
+        case _ => chartData.fromMeasurements(start, end, groupedTemps, validGrouping)
+      }
       Ok(data)
     }
   }

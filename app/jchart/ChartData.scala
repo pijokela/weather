@@ -17,11 +17,28 @@ import scala.annotation.tailrec
 class ChartData @Inject()(val configuration: Configuration) {
   
   val selectGroupingForTime: Map[String, Grouping] = Map(
-      "rollingWeek" -> Daily4Grouping
+      "rollingWeek" -> Daily4Grouping,
+      "rolling30days" -> DailyGrouping
     ).withDefaultValue(HourlyGrouping)
   
   private def createNoGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
     data.map(_.date)
+  }
+  
+  def dailyMinsAndMaxes(start: DateTime, end: DateTime, data : Seq[(String, Seq[TemperatureMeasurement])]): JsObject = {
+    val labels = Labels.forTimeAndGrouping(DailyGrouping, start, end)
+    Logger.info(s"Finding mins and maxes $labels from data.size: ${data.size} and data.head._2.size: ${data.head._2.size}")
+    val groupedData = data.flatMap { case (deviceId, data) => 
+      (deviceId + ".max", TemperatureMeasurement.findDailyMaximums(data).map(_._2)) ::
+      (deviceId + ".min", TemperatureMeasurement.findDailyMinimums(data).map(_._2)) :: Nil
+    }
+    // Find dates that have data:
+    val dataDates = groupedData.flatMap(pair => pair._2.map(_.date)).groupBy(_.withMillisOfDay(0)).keys.toSet
+    // Filter labels that do not have data in the first dataset:
+    val labelsWithData = labels.filter { l => dataDates.contains(l.date) }
+    
+    Logger.info(s"Found ${labelsWithData.size} labels and ${groupedData.head._2.size} data points.")
+    createJsonFromDataByDevice(labelsWithData.map(_.label), groupedData)
   }
   
   def fromMeasurements(start: DateTime, end: DateTime, data : Seq[(String, Seq[TemperatureMeasurement])], grouping: Grouping): JsObject = {
@@ -30,7 +47,7 @@ class ChartData @Inject()(val configuration: Configuration) {
     val groupedData = data.flatMap { case (deviceId, data) => 
       Labels.findDataFor(labels, data)
     }
-    fromMeasurements(labels.map(_.label), groupedData)
+    createJsonFromData(labels.map(_.label), groupedData)
   }
   
   private val colors = Vector(/*(151, 187, 205),(151, 205, 187),(187, 151, 205),(187, 205, 151),*/(33, 140, 141),(108, 206, 203), (249, 229, 89), ( 239, 113, 38), (142, 220, 157), (71, 62, 63),(205, 151, 187))
@@ -40,13 +57,17 @@ class ChartData @Inject()(val configuration: Configuration) {
     val tuple = colors(index % colors.length)
     s"rgba(${tuple._1},${tuple._2},${tuple._3},$opacity)"
   }
+
+  private def createJsonFromData(labelList : List[String], data : Seq[TemperatureMeasurement]): JsObject = {
+    val dataByDevice = data.groupBy { m => m.deviceId }.toList
+    createJsonFromDataByDevice(labelList, dataByDevice)
+  }
   
   /**
    * Push in a list of measurements and get a JSON document
    * you can send to the web page.
    */
-  private def fromMeasurements(labelList : List[String], data : Seq[TemperatureMeasurement]): JsObject = {
-    
+  private def createJsonFromDataByDevice(labelList : List[String], dataByDevice : Seq[(String, Seq[TemperatureMeasurement])]): JsObject = {
     val labels = JsArray(labelList.map { s => JsString(s) })
     
     var index = 0;
@@ -54,7 +75,6 @@ class ChartData @Inject()(val configuration: Configuration) {
       index = index + 1
     }
     
-    val dataByDevice = data.groupBy { m => m.deviceId }.toList
     val datasetList = dataByDevice.map { case (deviceId, measurements) => 
       
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
@@ -117,7 +137,17 @@ case object Daily4Grouping extends Grouping {
   }
 }
 
-case class Label(label: String, pointInTime: DateTime)
+case object DailyGrouping extends Grouping {
+  override val name: String = "daily"
+  override def timeAfter(pointInTime: DateTime): DateTime = {
+    val hrs = pointInTime.getHourOfDay
+    pointInTime.withMillisOfDay(0).plusDays(1)
+  }
+}
+
+case class Label(label: String, pointInTime: DateTime) {
+  def date : DateTime = pointInTime.withMillisOfDay(0)
+}
 
 object Labels {
   
@@ -159,6 +189,8 @@ object Labels {
       .map { case (t, prev) =>
         
         val tstr = (t, prev) match {
+          case (t, _) if (grouping == DailyGrouping && yearChanges) => "d.M.yyyy"
+          case (t, _) if (grouping == DailyGrouping) => "d.M"
           case (t, None) if (yearChanges)  => "d.M.yyyy - HH'h'"
           case (t, None) => "d.M - HH'h'"
           case (t, Some(p)) if (yearChanges && t.getDayOfMonth != p.getDayOfMonth) => "d.M.yyyy - HH'h'"
@@ -166,13 +198,6 @@ object Labels {
           case (t, _) => "HH'h'"
         }
         
-        if (prev == None || t.getDayOfYear != prev.get.getDayOfYear) {
-          // If the day has changed, print the date
-          t.toString("MM-dd: HH'h'")
-        } else {
-          // Otherwise just print the hour
-          t.toString("HH'h'")
-        }
         Label(t.toString(tstr), t)
       }
   }
