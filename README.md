@@ -42,3 +42,22 @@ crontab -e
 
 insert a row that wgets localhost:9000/measure:
 */10 * * * *   wget -O- http://localhost:9000/measure >/dev/null
+
+CURL Examples
+=============
+
+Store a single data point:
+
+´´´
+curl --verbose -XPOST 'http://localhost:9000/data' -H 'ContentType: application/json' --data '{
+"data": [
+  {"date": "", "deviceId": "test1", "milliC": 20000}
+]}'
+´´´
+
+´´´
+curl -H "Accept: application/json" -H "Content-type: application/json" \
+	-X POST -d '{"data":[{
+	"date": "2015-01-01T10:11:12+02:00", "deviceId": "test1", "milliC": 20000
+	}]}' http://localhost:9000/data
+´´´

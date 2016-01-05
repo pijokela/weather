@@ -3,7 +3,7 @@ package controllers
 import play.api._
 import play.api.mvc._
 import com.google.inject.Inject
-import dao.TemperatureDao
+import temperature.TemperatureDao
 import play.api.libs.concurrent.Execution.Implicits._
 import java.io.File
 import com.typesafe.config.ConfigException.Missing
@@ -13,7 +13,8 @@ import scala.concurrent.Future
 import play.api.libs.json._
 import jchart.ChartData
 import jchart.ChartData
-import dao.TemperatureDao
+import temperature.TemperatureDao
+import temperature.TemperatureMeasurement
 
 class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration, val chartData: ChartData) extends Controller {
 
@@ -51,6 +52,58 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
         case _ => chartData.fromMeasurements(start, end, groupedTemps, validGrouping)
       }
       Ok(data)
+    }
+  }
+  
+  def postData() = Action.async { request =>
+    val optionalJson = request.body.asJson
+    if (optionalJson.isDefined) {
+      val json = optionalJson.get
+      val data = json.\("data").asOpt[JsArray]
+      val dataList = data.toList.flatMap { d => d.value }
+      
+      if (dataList.isEmpty) {
+        badRequestResponse("The JSON data must contain a field 'data' with an array of the measurements to store.")
+      } else {
+        val measurements = dataList.map(json => TemperatureMeasurement(json))
+        val idListF = temperatureDao.store(measurements)
+        idListF.map{ idList =>
+          Ok(Json.obj("meta" -> Json.obj(
+              "storedMeasurements" -> idList.size
+          )))
+        }
+      }
+    } else {
+      badRequestResponse("The POST body must contain a JSON object.")
+    }
+  }
+  
+  /**
+   * Send 400 response with a JSON payload and message.
+   */
+  private def badRequestResponse(msg: String, storedMeasurements: Int = 0): Future[Result] = {
+    Future.successful(
+      BadRequest(Json.obj(
+        "meta" -> Json.obj(
+          "storedMeasurements" -> storedMeasurements,
+          "message" -> msg
+        )
+      ))
+    )
+  }
+  
+  // # DELETE data from a specific device ID:
+  // DELETE  /data           controllers.Application.deleteData(deviceId: String)
+  
+  def deleteData(deviceId: String) = Action.async { request =>
+    val deletedRowsF = temperatureDao.deleteDeviceMeasurements(deviceId)
+    deletedRowsF.map { deletedRows =>
+      Ok(Json.obj(
+        "meta" -> Json.obj(
+          "deletedMeasurements" -> deletedRows,
+          "deletedDeviceId" -> deviceId
+        )
+      ))
     }
   }
   

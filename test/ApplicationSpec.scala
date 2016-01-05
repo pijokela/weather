@@ -1,16 +1,22 @@
+
 import org.specs2.mutable._
 import org.specs2.runner._
 import org.junit.runner._
 import play.api.test._
 import play.api.test.Helpers._
+import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import dao.TemperatureMeasurement
+import temperature.TemperatureMeasurement
 import org.joda.time.DateTime
-import jchart.ChartData
 import play.api.libs.json.JsArray
 import play.api.libs.json.Json
 import play.api.libs.json.JsString
+import play.api.libs.json.JsObject
+import jchart.ChartData
+import controllers.TestConfig
+import jchart.NoGrouping
+import jchart.HourlyGrouping
 
 /**
  * Add your spec here.
@@ -19,21 +25,6 @@ import play.api.libs.json.JsString
  */
 @RunWith(classOf[JUnitRunner])
 class ApplicationSpec extends Specification {
-
-  "Application" should {
-
-    "send 404 on a bad request" in new WithApplication{
-      route(FakeRequest(GET, "/boum")) must beSome.which (status(_) == NOT_FOUND)
-    }
-
-//    "render the index page" in new WithApplication{
-//      val home = route(FakeRequest(GET, "/")).get
-//
-//      status(home) must equalTo(OK)
-//      contentType(home) must beSome.which(_ == "text/html")
-//      contentAsString(home) must contain ("Your new application is ready.")
-//    }
-  }
 
   "w1reader" should {
 
@@ -50,32 +41,37 @@ class ApplicationSpec extends Specification {
     }
   }
   
+  val emptyConfig = TestConfig(Map())
+  val chartData = new ChartData(emptyConfig)
+  
+  val testTime = new DateTime("2016-01-02T18:24:21")
+  val beforeTestTime = testTime.minusHours(1)
+  val afterTestTime = testTime.plusHours(1)
+  
   "ChartData generator" should {
     "create chart data json from TemperatureMeasurements" in new WithApplication{
-      val testTime = new DateTime
       val m = TemperatureMeasurement(1234, testTime, "outside", 12345)
-      val r = ChartData.fromMeasurements(List(m))
+      val r = chartData.fromMeasurements(beforeTestTime, afterTestTime, Seq("inside1" -> Seq(m)), NoGrouping)
       
       r.fields.toMap.keys.toList must equalTo("labels" :: "datasets" :: Nil)
-      (r \ "labels").as[JsArray] must equalTo(Json.arr(testTime.toString("yyyy-MM-dd'T'HH-mm-ss")))
+      (r \ "labels").as[JsArray] must equalTo(Json.arr("2.1 - 17h","17h","17h","18h","18h","18h","18h","18h","18h","19h","19h","19h"))
       val ds1 = (r \ "datasets").as[JsArray].value.head 
       (ds1 \ "label").as[JsString].value must equalTo("outside")
     }
     
     "group results hourly and with no groups" in  new WithApplication{
-      val testTime = new DateTime
       val m = TemperatureMeasurement(1234, testTime, "outside", 12345)
-      val r = ChartData.fromMeasurements(List(m), Some("hourly"))
+      val r = chartData.fromMeasurements(beforeTestTime, afterTestTime, Seq("inside1" -> Seq(m)), HourlyGrouping)
       
       r.fields.toMap.keys.toList must equalTo("labels" :: "datasets" :: Nil)
-      (r \ "labels").as[JsArray] must equalTo(Json.arr(testTime.toString("yyyy-MM-dd'T'HH-mm-ss")))
+      (r \ "labels").as[JsArray] must equalTo(Json.arr("2.1 - 18h","19h"))
       val ds1 = (r \ "datasets").as[JsArray].value.head 
       (ds1 \ "label").as[JsString].value must equalTo("outside")
       
-      val r2 = ChartData.fromMeasurements(List(m), Some("none"))
+      val r2 = chartData.fromMeasurements(beforeTestTime, afterTestTime, Seq("inside1" -> Seq(m)), NoGrouping)
       
       r2.fields.toMap.keys.toList must equalTo("labels" :: "datasets" :: Nil)
-      (r2 \ "labels").as[JsArray] must equalTo(Json.arr(testTime.toString("yyyy-MM-dd'T'HH-mm-ss")))
+      (r2 \ "labels").as[JsArray] must equalTo(Json.arr("2.1 - 17h","17h","17h","18h","18h","18h","18h","18h","18h","19h","19h","19h"))
       val ds12 = (r2 \ "datasets").as[JsArray].value.head 
       (ds12 \ "label").as[JsString].value must equalTo("outside")
     }

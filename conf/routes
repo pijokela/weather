@@ -5,8 +5,13 @@
 # Home page with chart
 GET     /                           controllers.Application.index
 
-# Get data for chart
+# Get JSON data for chart:
 GET		/data						controllers.Application.data(time: Option[String], grouping: Option[String])
+# POST data as JSON to be stored in database:
+POST	/data						controllers.Application.postData()
+# DELETE data from a specific device ID:
+DELETE	/data						controllers.Application.deleteData(deviceId: String)
+
 # Dump JSON data for testing
 GET		/test						controllers.Application.test
 

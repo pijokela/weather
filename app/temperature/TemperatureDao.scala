@@ -1,45 +1,29 @@
-package dao
+package temperature
 
 import com.google.inject.Inject
 import slick.driver.JdbcProfile
 import play.api.db.slick.DatabaseConfigProvider
 import slick.driver.PostgresDriver.api._
-import slick.lifted.{ProvenShape, ForeignKeyQuery}
+import slick.lifted.ProvenShape
 import org.joda.time.DateTime
 import java.sql.Timestamp
 import play.api.libs.concurrent.Execution.Implicits._
 import scala.concurrent.Future
 import com.google.inject.ImplementedBy
 import play.api.Logger
+import slick.lifted.ProvenShape.proveShapeOf
 
 @ImplementedBy(classOf[TemperaturePostgresDao])
 trait TemperatureDao {
   val times = "previous24h" :: "yesterday" :: "rollingWeek" :: "rolling30days" :: Nil
   
+  def store(measurements: List[TemperatureMeasurement]): Future[List[Int]]
   def store(date: DateTime, deviceId: String, milliC: Int): Future[Int]
+  def deleteDeviceMeasurements(deviceId: String): Future[Int]
   def list(resultCount: Int = 20): Future[Seq[TemperatureMeasurement]]
   def list(time: String, now: DateTime): Future[Seq[TemperatureMeasurement]]
   def getStartAndEnd(time: String, now: DateTime): (DateTime, DateTime)
   def listToday: Future[Seq[TemperatureMeasurement]]
-}
-
-case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int)
-
-object TemperatureMeasurement {
-  def findDailyMinimums(data: Seq[TemperatureMeasurement]): Seq[(DateTime, TemperatureMeasurement)] =
-    findDailySomething(data, (dailyData) => dailyData.minBy { tm => tm.milliC })
-
-  def findDailyMaximums(data: Seq[TemperatureMeasurement]): Seq[(DateTime, TemperatureMeasurement)] =
-    findDailySomething(data, (dailyData) => dailyData.maxBy { tm => tm.milliC })
-
-  private def findDailySomething(data: Seq[TemperatureMeasurement], 
-                         selector: (Seq[TemperatureMeasurement]) => TemperatureMeasurement): Seq[(DateTime, TemperatureMeasurement)] = 
-  {
-    val groupedDaily = data.groupBy { tm => tm.date.withMillisOfDay(0) }.toList
-    groupedDaily.map{case (d, dailyData) =>
-      (d, selector(dailyData))
-    }
-  }
 }
 
 class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseConfigProvider) extends TemperatureDao {
@@ -48,9 +32,19 @@ class TemperaturePostgresDao @Inject()(protected val dbConfigProvider: DatabaseC
 
   val measurements: TableQuery[TemperatureMeasurementDb] = TableQuery[TemperatureMeasurementDb]
   
+  override def store(measurements: List[TemperatureMeasurement]) : Future[List[Int]] = {
+    Future.sequence(measurements.map(m => store(m.date, m.deviceId, m.milliC)))
+  }
+  
   override def store(date: DateTime, deviceId: String, milliC: Int) : Future[Int] = {
     db.run(
       (measurements returning measurements.map(_.id)) += (0, new Timestamp(date.getMillis), deviceId, milliC)
+    )
+  }
+  
+  override def deleteDeviceMeasurements(deviceId: String): Future[Int] = {
+    db.run(
+      measurements.filter(_.device === deviceId).delete
     )
   }
   
@@ -119,3 +113,4 @@ class TemperatureMeasurementDb(tag: Tag)
   def * : ProvenShape[(Int, Timestamp, String, Int)] =
     (id, date, device, temperatureMilliC)
 }
+

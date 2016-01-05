@@ -1,20 +1,21 @@
 package jchart
 
-import dao.TemperatureMeasurement
+import temperature.TemperatureMeasurement
 import play.api.libs.json.JsObject
 import play.api.libs.json.Json
 import play.api.libs.json.JsArray
 import play.api.libs.json.JsString
 import play.api.libs.json.JsNumber
 import org.joda.time.DateTime
-import dao.TemperatureMeasurement
+import temperature.TemperatureMeasurement
 import play.api.Logger
 import java.util.Random
 import play.api.Configuration
 import com.google.inject.Inject
 import scala.annotation.tailrec
+import controllers.Config
 
-class ChartData @Inject()(val configuration: Configuration) {
+class ChartData @Inject()(val configuration: Config) {
   
   val selectGroupingForTime: Map[String, Grouping] = Map(
       "rollingWeek" -> Daily4Grouping,
@@ -41,7 +42,11 @@ class ChartData @Inject()(val configuration: Configuration) {
     createJsonFromDataByDevice(labelsWithData.map(_.label), groupedData)
   }
   
-  def fromMeasurements(start: DateTime, end: DateTime, data : Seq[(String, Seq[TemperatureMeasurement])], grouping: Grouping): JsObject = {
+  def fromMeasurements(start: DateTime, 
+                       end: DateTime, 
+                       data : Seq[(String, Seq[TemperatureMeasurement])], 
+                       grouping: Grouping): JsObject = 
+  {
     val labels = Labels.forTimeAndGrouping(grouping, start, end)
     Logger.info(s"Grouping is ${grouping.name} --> $labels from data.size: ${data.size}")
     val groupedData = data.flatMap { case (deviceId, data) => 
@@ -80,7 +85,7 @@ class ChartData @Inject()(val configuration: Configuration) {
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
       
-      val deviceLabel = configuration.getString(s"deviceId.$deviceId.label").getOrElse(deviceId)
+      val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
       val json = Json.obj(
         "label" -> deviceLabel,
         "fillColor" -> color(index, 0.4),
