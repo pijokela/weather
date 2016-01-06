@@ -7,10 +7,29 @@ import com.pi4j.io.i2c.I2CFactory
 import play.api.Logger
 import java.io.IOException
 import java.io.ByteArrayInputStream
+import com.google.inject.Inject
+import controllers.Config
+import controllers.MeasurementSource
+import org.joda.time.DateTime
+import controllers.Measurement
+import scala.concurrent.Future
+import play.api.libs.concurrent.Execution.Implicits._
+import controllers.Measurement
 
 
-class I2cTemperatures {
+class I2cService @Inject()(config: Config) extends MeasurementSource {
+  val sensor = new Bmp180Sensor(Bmp180Sensor.STANDARD)
   
+  override def measure(now: DateTime): Future[List[Measurement]] = {
+    Future {
+      val pm = sensor.readPressure()
+      val tm = sensor.readTemp()
+      
+      Measurement(now, "bmp180", pm, MeasurementSource.PRESSURE) :: 
+        Measurement(now, "bmp180", tm, MeasurementSource.TEMPERATURE) :: 
+        Nil
+    }
+  }
 }
 
 /**
@@ -147,16 +166,16 @@ class Bmp180Sensor(val mode: Int = Bmp180Sensor.STANDARD) {
     } catch {
       case ioe: IOException => {
         log.error("IO Exception: " + ioe.getMessage(), ioe)
-        0
+        -400
       }
       case ie: InterruptedException => {
         log.error("Interrupted Exception: " + ie.getMessage(), ie)
-        0
+        -400
       }
     }
   }
   
-  def readTemp(): Double = {
+  def readTemp(): Int = {
     val UT = readRawTemp()
     
     //calculate temperature

@@ -3,6 +3,29 @@ package w1reader
 import java.io.File
 import scala.io.Source
 import scala.concurrent.Future
+import controllers.Config
+import com.google.inject.Inject
+import com.typesafe.config.ConfigException.Missing
+import org.joda.time.DateTime
+import controllers.Measurement
+import controllers.MeasurementSource
+import play.api.libs.concurrent.Execution.Implicits._
+
+/**
+ * Implement MeasurementSource interface to allow using w1 devices
+ * in a standard way.
+ */
+class W1Service @Inject()(config: Config) extends MeasurementSource {
+  val file = new File(config.requiredString("w1devices.dir"))
+  
+  override def measure(now: DateTime): Future[List[Measurement]] = {
+    val reader = new W1Temperatures(file)
+    val resultsFuture = reader.filenameAndTempList
+    val now = new DateTime
+    
+    resultsFuture.map(_.map{case (id, milliC) => Measurement(now, id, milliC, MeasurementSource.TEMPERATURE)})
+  }
+}
 
 /**
  * This class reads temperature values from one wire devices.

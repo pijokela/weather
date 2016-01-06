@@ -15,9 +15,22 @@ import jchart.ChartData
 import jchart.ChartData
 import temperature.TemperatureDao
 import temperature.TemperatureMeasurement
+import w1reader.W1Service
+import pressure.PressureDao
 
-class Application @Inject()(val temperatureDao: TemperatureDao, val configuration: Configuration, val chartData: ChartData) extends Controller {
+class Application @Inject()(
+    val temperatureDao: TemperatureDao, 
+    val pressureDao: PressureDao,
+    val config: Config, 
+    val w1service: W1Service,
+    val chartData: ChartData) extends Controller 
+{
 
+  val storeDataLocally = config.boolean("application.mode.store-locally").getOrElse(false)
+  val sendDataTo = config.stringList("application.mode.send-to")
+  
+  val log = Logger("application")
+  val measurementSources : List[MeasurementSource] = List(w1service)
   val jsonDatePattern = "yyyy-MM-dd'T'HH:mm:ss"
   
   def index = Action { 
@@ -36,12 +49,12 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
   }
   
   def data(time: Option[String], grouping: Option[String]) = Action.async { request =>
-    val validTime = time.getOrElse(temperatureDao.times.head)
+    val validTime = time.getOrElse(TimeSlots.times.head)
     val validGrouping = chartData.selectGroupingForTime(validTime)
     Logger.info("Got time: " + time + " --> " + validTime)
     
     val now = DateTime.now()
-    val (start, end) = temperatureDao.getStartAndEnd(validTime, now)
+    val (start, end) = TimeSlots.getStartAndEnd(validTime, now)
     Logger.info("Got start and end: " + start + " " + end)
     
     temperatureDao.list(validTime, now).map { temperatures => 
@@ -55,6 +68,9 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
     }
   }
   
+  /**
+   * Receive measurements over HTTP POST
+   */
   def postData() = Action.async { request =>
     val optionalJson = request.body.asJson
     if (optionalJson.isDefined) {
@@ -65,9 +81,18 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
       if (dataList.isEmpty) {
         badRequestResponse("The JSON data must contain a field 'data' with an array of the measurements to store.")
       } else {
-        val measurements = dataList.map(json => TemperatureMeasurement(json))
-        val idListF = temperatureDao.store(measurements)
-        idListF.map{ idList =>
+        val measurements = dataList.map(_.as[JsObject]).map(json => Measurement(json))
+        
+        val idListF = measurements.map { measurement =>
+          measurement match {
+            case m @ Measurement(_, _, _, MeasurementSource.TEMPERATURE) => 
+              temperatureDao.store(m)
+            case m @ Measurement(_, _, _, MeasurementSource.PRESSURE) => 
+              pressureDao.store(m)
+          }
+        }
+        
+        Future.sequence(idListF).map{ idList =>
           Ok(Json.obj("meta" -> Json.obj(
               "storedMeasurements" -> idList.size
           )))
@@ -109,20 +134,33 @@ class Application @Inject()(val temperatureDao: TemperatureDao, val configuratio
   
   def measure = Action.async { request =>
     
-    val file = new File(configuration.getString("w1devices.dir", None).getOrElse(throw new Missing("w1devices.dir")))
-    val reader = new W1Temperatures(file)
-    val resultsFuture = reader.filenameAndTempList
     val now = new DateTime
+    val resultFutures = measurementSources.map { ms => ms.measure(now) }
+    val resultsFuture = Future.sequence(resultFutures)
     
     val rowsFuture = resultsFuture.flatMap { results =>
-      val rowsFuture = results.map { case (filename, milliC) => 
-        temperatureDao.store(now, filename, milliC)
+      val rowsFuture = results.flatten.map { m => 
+        m match {
+          case Measurement(d,id,v,MeasurementSource.TEMPERATURE) => {
+            log.info("Temperature measurement handled: " + v + " mC")
+            temperatureDao.store(d, id, v)
+          }
+          case Measurement(d,id,v,MeasurementSource.PRESSURE) => {
+            log.info("Pressure measurement handled: " + v + " Pa")
+            pressureDao.store(d, id, v)
+          }
+        }
       }
       Future.sequence(rowsFuture)
     }
     
     rowsFuture.map { rows =>
-      Ok("" + rows)
+      Ok(Json.obj(
+        "meta" -> Json.obj(
+          "temperatureRows" -> rows,
+          "pressureRows" -> 0
+        )
+      ))
     }
   }
 

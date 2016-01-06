@@ -3,8 +3,15 @@ package temperature
 import org.joda.time.DateTime
 import play.api.libs.json.JsValue
 import org.joda.time.format.ISODateTimeFormat
+import play.api.libs.json.Json
+import play.api.libs.json.JsObject
 
-case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int)
+case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int) {
+  def toJson : JsObject = 
+    Json.obj("date" -> TemperatureMeasurement.dateFormat.print(date),
+             "deviceId" -> deviceId,
+             "milliC" -> milliC)
+}
 
 object TemperatureMeasurement {
   val dateFormat = ISODateTimeFormat.dateTimeNoMillis()
