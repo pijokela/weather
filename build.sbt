@@ -12,6 +12,7 @@ libraryDependencies ++= Seq(
   cache,
   ws,
   "org.postgresql" % "postgresql" % "9.4-1201-jdbc41",
+  "com.pi4j" % "pi4j-core" % "1.0",
   specs2 % Test
 )
 libraryDependencies += "com.typesafe.play" %% "play-slick" % "1.1.1"
