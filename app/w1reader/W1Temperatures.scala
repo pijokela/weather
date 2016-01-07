@@ -33,7 +33,7 @@ class W1Service @Inject()(config: Config) extends MeasurementSource {
  * This class reads temperature values from one wire devices.
  */
 class W1Temperatures(devicesDir: File) {
-  private def deviceDirs : Seq[File] = devicesDir.listFiles().filter { f => f.isDirectory() }
+  private def deviceDirs : Seq[File] = Option(devicesDir.listFiles()).toList.flatten.filter { f => f.isDirectory() }
   
   private def temperatureDataFiles : Seq[File] = deviceDirs.map { d => 
     new File(d, "w1_slave") }.filter { f => f.exists() 
