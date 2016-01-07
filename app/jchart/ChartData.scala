@@ -88,7 +88,7 @@ class ChartData @Inject()(val configuration: Config) {
       val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
       val json = Json.obj(
         "label" -> deviceLabel,
-        "fillColor" -> color(index, 0.4),
+        "fillColor" -> color(index, 0.2),
         "strokeColor" -> color(index, 1),
         "pointColor" -> color(index, 1),
         "pointStrokeColor" -> "#fff",
