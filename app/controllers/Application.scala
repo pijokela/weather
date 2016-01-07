@@ -87,12 +87,15 @@ class Application @Inject()(
         badRequestResponse("The JSON data must contain a field 'data' with an array of the measurements to store.")
       } else {
         val measurements = dataList.map(_.as[JsObject]).map(json => Measurement(json))
+        log.info("Measurements received: " + measurements.size)
         
         val idListF = measurements.map { measurement =>
           measurement match {
             case m @ Measurement(_, _, _, MeasurementSource.TEMPERATURE) => 
+              log.info("Temperature measurement received: " + m.value + " mC")
               temperatureDao.store(m)
             case m @ Measurement(_, _, _, MeasurementSource.PRESSURE) => 
+              log.info("Pressure measurement received: " + m.value + " Pa")
               pressureDao.store(m)
           }
         }
@@ -152,7 +155,9 @@ class Application @Inject()(
         val json = Json.obj(
           "data" -> JsArray(jsonList)
         )
-        ws.url(recipient + "/data").post(json).onFailure { case r => log.warn("Failed to send results: " + r.getMessage, r) }
+        val r = ws.url(recipient + "/data").post(json)
+        r.onFailure { case r => log.warn("Failed to send results: " + r.getMessage, r) }
+        r.onSuccess { case r => log.info(s"Sent ${jsonList.size} measurements, response code: ${r.status}") }
       }
       
       if (storeDataLocally) {
