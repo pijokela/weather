@@ -20,6 +20,8 @@ import controllers.Measurement
 class I2cService @Inject()(config: Config) extends MeasurementSource {
   val sensor = new Bmp180Sensor(Bmp180Sensor.STANDARD)
   
+  override def isOnline = config.boolean("i2cService.online").getOrElse(false)
+  
   override def measure(now: DateTime): Future[List[Measurement]] = {
     Future {
       val pm = sensor.readPressure()

@@ -19,12 +19,14 @@ import w1reader.W1Service
 import pressure.PressureDao
 import play.api.libs.ws.WS
 import play.api.libs.ws.WSClient
+import i2creader.I2cService
 
 class Application @Inject()(
     val temperatureDao: TemperatureDao, 
     val pressureDao: PressureDao,
     val config: Config, 
     val w1service: W1Service,
+    val i2cService: I2cService,
     val chartData: ChartData,
     val ws: WSClient) extends Controller 
 {
@@ -33,7 +35,7 @@ class Application @Inject()(
   val sendDataTo = config.stringList("application.mode.send-to")
   
   val log = Logger("application")
-  val measurementSources : List[MeasurementSource] = List(w1service)
+  val measurementSources : List[MeasurementSource] = List(w1service, i2cService)
   val jsonDatePattern = "yyyy-MM-dd'T'HH:mm:ss"
   
   def index = Action { 
@@ -138,7 +140,7 @@ class Application @Inject()(
   def measure = Action.async { request =>
     
     val now = new DateTime
-    val resultFutures = measurementSources.map { ms => ms.measure(now) }
+    val resultFutures = measurementSources.filter(_.isOnline()).map { ms => ms.measure(now) }
     val resultsFuture = Future.sequence(resultFutures)
     
     val rowsFuture = resultsFuture.flatMap { results =>

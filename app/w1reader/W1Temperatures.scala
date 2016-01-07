@@ -17,6 +17,8 @@ import play.api.libs.concurrent.Execution.Implicits._
  */
 class W1Service @Inject()(config: Config) extends MeasurementSource {
   val file = new File(config.requiredString("w1devices.dir"))
+
+  override def isOnline = config.boolean("w1Service.online").getOrElse(false)
   
   override def measure(now: DateTime): Future[List[Measurement]] = {
     val reader = new W1Temperatures(file)

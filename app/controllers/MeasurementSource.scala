@@ -16,6 +16,7 @@ object MeasurementSource {
  * @author pirkka
  */
 trait MeasurementSource {
+  def isOnline(): Boolean
   def measure(now: DateTime): Future[List[Measurement]]
 }
 
