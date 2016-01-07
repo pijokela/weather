@@ -17,13 +17,16 @@ import temperature.TemperatureDao
 import temperature.TemperatureMeasurement
 import w1reader.W1Service
 import pressure.PressureDao
+import play.api.libs.ws.WS
+import play.api.libs.ws.WSClient
 
 class Application @Inject()(
     val temperatureDao: TemperatureDao, 
     val pressureDao: PressureDao,
     val config: Config, 
     val w1service: W1Service,
-    val chartData: ChartData) extends Controller 
+    val chartData: ChartData,
+    val ws: WSClient) extends Controller 
 {
 
   val storeDataLocally = config.boolean("application.mode.store-locally").getOrElse(false)
@@ -139,15 +142,33 @@ class Application @Inject()(
     val resultsFuture = Future.sequence(resultFutures)
     
     val rowsFuture = resultsFuture.flatMap { results =>
-      val rowsFuture = results.flatten.map { m => 
+      val resultList = results.flatten
+      
+      // POST data to recipients:
+      sendDataTo.map { recipient => 
+        val jsonList = resultList.map(_.toJson)
+        val json = Json.obj(
+          "data" -> JsArray(jsonList)
+        )
+        ws.url(recipient + "/data").post(json).onFailure { case r => log.warn("Failed to send results: " + r.getMessage, r) }
+      }
+      
+      // Store data to database:
+      val rowsFuture = resultList.map { m => 
         m match {
           case Measurement(d,id,v,MeasurementSource.TEMPERATURE) => {
             log.info("Temperature measurement handled: " + v + " mC")
-            temperatureDao.store(d, id, v)
+            if (storeDataLocally)
+              temperatureDao.store(d, id, v)
+            else
+              Future.successful(0)
           }
           case Measurement(d,id,v,MeasurementSource.PRESSURE) => {
             log.info("Pressure measurement handled: " + v + " Pa")
-            pressureDao.store(d, id, v)
+            if (storeDataLocally)
+              pressureDao.store(d, id, v)
+            else
+              Future.successful(0)
           }
         }
       }
