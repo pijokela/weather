@@ -143,7 +143,7 @@ class Application @Inject()(
     val resultFutures = measurementSources.filter(_.isOnline()).map { ms => ms.measure(now) }
     val resultsFuture = Future.sequence(resultFutures)
     
-    val rowsFuture = resultsFuture.flatMap { results =>
+    val rowsFuture : Future[List[Int]]= resultsFuture.flatMap { results =>
       val resultList = results.flatten
       
       // POST data to recipients:
@@ -155,26 +155,26 @@ class Application @Inject()(
         ws.url(recipient + "/data").post(json).onFailure { case r => log.warn("Failed to send results: " + r.getMessage, r) }
       }
       
-      // Store data to database:
-      val rowsFuture = resultList.map { m => 
-        m match {
-          case Measurement(d,id,v,MeasurementSource.TEMPERATURE) => {
-            log.info("Temperature measurement handled: " + v + " mC")
-            if (storeDataLocally)
+      if (storeDataLocally) {
+        log.info("Storing measurements locally")
+        // Store data to database:
+        val rowsFuture = resultList.map { m => 
+          m match {
+            case Measurement(d,id,v,MeasurementSource.TEMPERATURE) => {
+              log.info("Temperature measurement handled: " + v + " mC")
               temperatureDao.store(d, id, v)
-            else
-              Future.successful(0)
-          }
-          case Measurement(d,id,v,MeasurementSource.PRESSURE) => {
-            log.info("Pressure measurement handled: " + v + " Pa")
-            if (storeDataLocally)
+            }
+            case Measurement(d,id,v,MeasurementSource.PRESSURE) => {
+              log.info("Pressure measurement handled: " + v + " Pa")
               pressureDao.store(d, id, v)
-            else
-              Future.successful(0)
+            }
           }
         }
+        Future.sequence(rowsFuture)
+      } else {
+        log.info("Not storing measurements locally")
+        Future.successful(List(0))
       }
-      Future.sequence(rowsFuture)
     }
     
     rowsFuture.map { rows =>
