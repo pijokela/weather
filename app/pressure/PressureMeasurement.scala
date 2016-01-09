@@ -6,12 +6,15 @@ import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.json.Json
 import play.api.libs.json.JsObject
 import temperature.TemperatureMeasurement
+import controllers.Measurement
+import controllers.MeasurementSource
 
 case class PressureMeasurement(id: Int, date: DateTime, deviceId: String, pa: Int) {
   def toJson : JsObject = 
     Json.obj("date" -> TemperatureMeasurement.dateFormat.print(date),
              "deviceId" -> deviceId,
              "Pa" -> pa)
+  def toMeasurement = Measurement(date, deviceId, pa, MeasurementSource.PRESSURE)
 }
 
 object PressureMeasurement {

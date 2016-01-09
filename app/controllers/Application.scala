@@ -53,7 +53,8 @@ class Application @Inject()(
     }
   }
   
-  def data(time: Option[String], grouping: Option[String]) = Action.async { request =>
+  def data(`type`: Option[String], time: Option[String], grouping: Option[String]) = Action.async { request =>
+    val validType = `type`.getOrElse("temperature")
     val validTime = time.getOrElse(TimeSlots.times.head)
     val validGrouping = chartData.selectGroupingForTime(validTime)
     Logger.info("Got time: " + time + " --> " + validTime)
@@ -62,7 +63,13 @@ class Application @Inject()(
     val (start, end) = TimeSlots.getStartAndEnd(validTime, now)
     Logger.info("Got start and end: " + start + " " + end)
     
-    temperatureDao.list(validTime, now).map { temperatures => 
+    val resultsF = validType match {
+      case "pressure" => pressureDao.list(validTime, now).map(_.map(_.toMeasurement))
+      case "temperature" => temperatureDao.list(validTime, now).map(_.map(_.toMeasurement))
+      case _ => temperatureDao.list(validTime, now).map(_.map(_.toMeasurement))
+    }
+    
+    resultsF.map { temperatures => 
       Logger.info("Got data: " + temperatures.size)
       val groupedTemps = temperatures.groupBy { t => t.deviceId }.toList
       val data = validTime match {

@@ -14,6 +14,7 @@ import play.api.Configuration
 import com.google.inject.Inject
 import scala.annotation.tailrec
 import controllers.Config
+import controllers.Measurement
 
 class ChartData @Inject()(val configuration: Config) {
   
@@ -25,13 +26,29 @@ class ChartData @Inject()(val configuration: Config) {
   private def createNoGroups(data : Seq[TemperatureMeasurement]): Seq[DateTime] = {
     data.map(_.date)
   }
+
+  def findDailyMinimums(data: Seq[Measurement]): Seq[(DateTime, Measurement)] =
+    findDailySomething(data, (dailyData) => dailyData.minBy { tm => tm.value })
+
+  def findDailyMaximums(data: Seq[Measurement]): Seq[(DateTime, Measurement)] =
+    findDailySomething(data, (dailyData) => dailyData.maxBy { tm => tm.value })
+
+  private def findDailySomething(data: Seq[Measurement], 
+    selector: (Seq[Measurement]) => Measurement): Seq[(DateTime, Measurement)] = 
+  {
+    val groupedDaily = data.groupBy { tm => tm.date.withMillisOfDay(0) }.toList
+    groupedDaily.map{case (d, dailyData) =>
+      (d, selector(dailyData))
+    }
+  }
+    
   
-  def dailyMinsAndMaxes(start: DateTime, end: DateTime, data : Seq[(String, Seq[TemperatureMeasurement])]): JsObject = {
+  def dailyMinsAndMaxes(start: DateTime, end: DateTime, data : Seq[(String, Seq[Measurement])]): JsObject = {
     val labels = Labels.forTimeAndGrouping(DailyGrouping, start, end)
     Logger.info(s"Finding mins and maxes $labels from data.size: ${data.size} and data.head._2.size: ${data.head._2.size}")
     val groupedData = data.flatMap { case (deviceId, data) => 
-      (deviceId + ".max", TemperatureMeasurement.findDailyMaximums(data).map(_._2)) ::
-      (deviceId + ".min", TemperatureMeasurement.findDailyMinimums(data).map(_._2)) :: Nil
+      (deviceId + ".max", findDailyMaximums(data).map(_._2)) ::
+      (deviceId + ".min", findDailyMinimums(data).map(_._2)) :: Nil
     }
     // Find dates that have data:
     val dataDates = groupedData.flatMap(pair => pair._2.map(_.date)).groupBy(_.withMillisOfDay(0)).keys.toSet
@@ -72,7 +89,7 @@ class ChartData @Inject()(val configuration: Config) {
    * Push in a list of measurements and get a JSON document
    * you can send to the web page.
    */
-  private def createJsonFromDataByDevice(labelList : List[String], dataByDevice : Seq[(String, Seq[TemperatureMeasurement])]): JsObject = {
+  private def createJsonFromDataByDevice(labelList : List[String], dataByDevice : Seq[(String, Seq[Measurement])]): JsObject = {
     val labels = JsArray(labelList.map { s => JsString(s) })
     
     var index = 0;
@@ -82,8 +99,8 @@ class ChartData @Inject()(val configuration: Config) {
     
     val datasetList = dataByDevice.map { case (deviceId, measurements) => 
       
-      val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
-      val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
+      val values = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.value / 1000.0)
+      val datasetDataArray = JsArray(values.map(JsNumber(_)))
       
       val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
       val json = Json.obj(

@@ -1,12 +1,12 @@
 _charts = [];
 
-function createChart(data, chartNumber) {
+function createChart(data, chartNumber, scaleLabel) {
   var chart = _charts[chartNumber]
   if (chart != null) {
 	  chart.destroy();
   }
   var ctx = document.getElementById("chart"+chartNumber).getContext("2d");
-  _charts[chartNumber] = new Chart(ctx).Line(data);
+  _charts[chartNumber] = new Chart(ctx).Line(data, {'scaleLabel': scaleLabel});
 }
 
 Chart.defaults.global.animation = false;
@@ -14,15 +14,16 @@ Chart.defaults.global.scaleFontColor = "#AAA";
 Chart.defaults.global.responsive = true;
 Chart.defaults.global.tooltipTemplate = "<%if (label){%><%=label%>: <%}%><%= value %>";
 Chart.defaults.global.scaleLabel = "<%=value%> C";
-Chart.defaults.global.multiTooltipTemplate = "<%= datasetLabel %> - <%= value %>"
+Chart.defaults.global.multiTooltipTemplate = "<%= datasetLabel %> - <%= value %>";
 Chart.defaults.global.legendTemplate = "<ul class=\"<%=name.toLowerCase()%>-legend\"><% for (var i=0; i<datasets.length; i++){%><li><span style=\"background-color:<%=datasets[i].fillColor%>\"></span><%if(datasets[i].label){%><%=datasets[i].label%><%}%></li><%}%></ul>";
+Chart.defaults.global.scaleGridLineColor = "rgba(255,255,255,.10)";
 
 function loadData(timeframe) {
   $('#messages').html("");
   $.ajax({
     url: '/data?time=' + timeframe + '&type=temperature',
     success: function(data) {
-      createChart(data, 1);
+      createChart(data, 1, "<%=value> C");
     },
     error: function(jqXhr, textStatus, errorThrown) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
@@ -32,7 +33,7 @@ function loadData(timeframe) {
   $.ajax({
     url: '/data?time=' + timeframe + '&type=pressure',
     success: function(data) {
-      createChart(data, 2);
+      createChart(data, 2, "<%=value%> kPa");
     },
     error: function(jqXhr, textStatus, errorThrown) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");

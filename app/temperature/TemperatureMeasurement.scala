@@ -5,12 +5,15 @@ import play.api.libs.json.JsValue
 import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.json.Json
 import play.api.libs.json.JsObject
+import controllers.Measurement
+import controllers.MeasurementSource
 
 case class TemperatureMeasurement(id: Int, date: DateTime, deviceId: String, milliC: Int) {
   def toJson : JsObject = 
     Json.obj("date" -> TemperatureMeasurement.dateFormat.print(date),
              "deviceId" -> deviceId,
              "milliC" -> milliC)
+  def toMeasurement = Measurement(date, deviceId, milliC, MeasurementSource.TEMPERATURE)
 }
 
 object TemperatureMeasurement {
@@ -31,7 +34,7 @@ object TemperatureMeasurement {
     findDailySomething(data, (dailyData) => dailyData.maxBy { tm => tm.milliC })
 
   private def findDailySomething(data: Seq[TemperatureMeasurement], 
-                         selector: (Seq[TemperatureMeasurement]) => TemperatureMeasurement): Seq[(DateTime, TemperatureMeasurement)] = 
+    selector: (Seq[TemperatureMeasurement]) => TemperatureMeasurement): Seq[(DateTime, TemperatureMeasurement)] = 
   {
     val groupedDaily = data.groupBy { tm => tm.date.withMillisOfDay(0) }.toList
     groupedDaily.map{case (d, dailyData) =>
