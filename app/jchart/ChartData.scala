@@ -83,6 +83,7 @@ class ChartData @Inject()(val configuration: Config) {
     val datasetList = dataByDevice.map { case (deviceId, measurements) => 
       
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
+      val meanValue = temperatures.sum / temperatures.length
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
       
       val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
