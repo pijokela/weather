@@ -97,7 +97,7 @@ class ChartData @Inject()(val configuration: Config) {
       )
       nextIndex()
       (meanValue, deviceLabel, json)
-    }.sortWith(_._1 < _._1)
+    }.sortWith(_._1 > _._1)
     
     val labels = JsArray(labelList.map { s => JsString(s) })
     
