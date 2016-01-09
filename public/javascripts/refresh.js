@@ -23,13 +23,13 @@ function loadData(timeframe) {
   $.ajax({
     url: '/data?time=' + timeframe + '&type=temperature',
     success: function(data) {
-      createChart(data, 1, "<%=value> C");
+      createChart(data, 1, "<%=value%> C");
     },
     error: function(jqXhr, textStatus, errorThrown) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
     }
   });
-/*
+
   $.ajax({
     url: '/data?time=' + timeframe + '&type=pressure',
     success: function(data) {
@@ -39,7 +39,7 @@ function loadData(timeframe) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
     }
   });
-  */
+  
 }
 
 
