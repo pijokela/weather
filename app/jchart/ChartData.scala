@@ -61,7 +61,7 @@ class ChartData @Inject()(val configuration: Config) {
   
   def fromMeasurements(start: DateTime, 
                        end: DateTime, 
-                       data : Seq[(String, Seq[TemperatureMeasurement])], 
+                       data : Seq[(String, Seq[Measurement])], 
                        grouping: Grouping): JsObject = 
   {
     val labels = Labels.forTimeAndGrouping(grouping, start, end)
@@ -80,7 +80,7 @@ class ChartData @Inject()(val configuration: Config) {
     s"rgba(${tuple._1},${tuple._2},${tuple._3},$opacity)"
   }
 
-  private def createJsonFromData(labelList : List[String], data : Seq[TemperatureMeasurement]): JsObject = {
+  private def createJsonFromData(labelList : List[String], data : Seq[Measurement]): JsObject = {
     val dataByDevice = data.groupBy { m => m.deviceId }.toList
     createJsonFromDataByDevice(labelList, dataByDevice)
   }
@@ -90,17 +90,16 @@ class ChartData @Inject()(val configuration: Config) {
    * you can send to the web page.
    */
   private def createJsonFromDataByDevice(labelList : List[String], dataByDevice : Seq[(String, Seq[Measurement])]): JsObject = {
-    val labels = JsArray(labelList.map { s => JsString(s) })
-    
     var index = 0;
     def nextIndex() : Unit = {
       index = index + 1
     }
     
-    val datasetList = dataByDevice.map { case (deviceId, measurements) => 
+    val meanLabelDataList = dataByDevice.map { case (deviceId, measurements) => 
       
-      val values = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.value / 1000.0)
-      val datasetDataArray = JsArray(values.map(JsNumber(_)))
+      val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.value / 1000.0)
+      val meanValue = temperatures.sum / temperatures.length.asInstanceOf[Double]
+      val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
       
       val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
       val json = Json.obj(
@@ -114,10 +113,12 @@ class ChartData @Inject()(val configuration: Config) {
         "data" -> datasetDataArray
       )
       nextIndex()
-      json
-    }
+      (meanValue, deviceLabel, json)
+    }.sortWith(_._1 > _._1)
     
-    val datasets = JsArray(datasetList)
+    val labels = JsArray(labelList.map { s => JsString(s) })
+    
+    val datasets = JsArray(meanLabelDataList.map(_._3))
     Json.obj("labels" -> labels, "datasets" -> datasets)
   }
 }
@@ -174,7 +175,7 @@ case class Label(label: String, pointInTime: DateTime) {
 object Labels {
   
   @tailrec
-  def findDataFor(labels: List[Label], data: Seq[TemperatureMeasurement], result: List[TemperatureMeasurement] = Nil): List[TemperatureMeasurement] = {
+  def findDataFor(labels: List[Label], data: Seq[Measurement], result: List[Measurement] = Nil): List[Measurement] = {
     Logger.info("Finding from data: " + data.size)
     labels.headOption match {
       case None => result

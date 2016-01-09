@@ -6,7 +6,7 @@
 GET     /                           controllers.Application.index
 
 # Get JSON data for chart:
-GET		/data						controllers.Application.data(time: Option[String], grouping: Option[String])
+GET		/data						controllers.Application.data(type: Option[String], time: Option[String], grouping: Option[String])
 # POST data as JSON to be stored in database:
 POST	/data						controllers.Application.postData()
 # DELETE data from a specific device ID:
