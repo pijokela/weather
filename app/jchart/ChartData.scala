@@ -97,9 +97,7 @@ class ChartData @Inject()(val configuration: Config) {
       )
       nextIndex()
       (meanValue, deviceLabel, json)
-    }
-    def meanValue(label: String): Double = meanLabelDataList.find(_._2 == label).getOrElse(throw new Exception("No data for label: " + label))._1
-    val sortedLabels = labelList.sortWith((l1, l2) => meanValue(l1) > meanValue(l2))
+    }.sortWith(_._1 < _._1)
     
     val labels = JsArray(labelList.map { s => JsString(s) })
     
