@@ -73,17 +73,15 @@ class ChartData @Inject()(val configuration: Config) {
    * you can send to the web page.
    */
   private def createJsonFromDataByDevice(labelList : List[String], dataByDevice : Seq[(String, Seq[TemperatureMeasurement])]): JsObject = {
-    val labels = JsArray(labelList.map { s => JsString(s) })
-    
     var index = 0;
     def nextIndex() : Unit = {
       index = index + 1
     }
     
-    val datasetList = dataByDevice.map { case (deviceId, measurements) => 
+    val meanLabelDataList = dataByDevice.map { case (deviceId, measurements) => 
       
       val temperatures = measurements.sortWith((d1,d2) => d1.date.isBefore(d2.date)).map(_.milliC / 1000.0)
-      val meanValue = temperatures.sum / temperatures.length
+      val meanValue = temperatures.sum / temperatures.length.asInstanceOf[Double]
       val datasetDataArray = JsArray(temperatures.map(JsNumber(_)))
       
       val deviceLabel = configuration.string(s"deviceId.$deviceId.label").getOrElse(deviceId)
@@ -98,10 +96,14 @@ class ChartData @Inject()(val configuration: Config) {
         "data" -> datasetDataArray
       )
       nextIndex()
-      json
+      (meanValue, deviceLabel, json)
     }
+    def meanValue(label: String): Double = meanLabelDataList.find(_._2 == label).getOrElse(throw new Exception("No data for label: " + label))._1
+    val sortedLabels = labelList.sortWith((l1, l2) => meanValue(l1) > meanValue(l2))
     
-    val datasets = JsArray(datasetList)
+    val labels = JsArray(labelList.map { s => JsString(s) })
+    
+    val datasets = JsArray(meanLabelDataList.map(_._3))
     Json.obj("labels" -> labels, "datasets" -> datasets)
   }
 }
