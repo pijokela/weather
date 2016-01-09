@@ -16,7 +16,7 @@ Chart.defaults.global.tooltipTemplate = "<%if (label){%><%=label%>: <%}%><%= val
 Chart.defaults.global.scaleLabel = "<%=value%> C";
 Chart.defaults.global.multiTooltipTemplate = "<%= datasetLabel %> - <%= value %>";
 Chart.defaults.global.legendTemplate = "<ul class=\"<%=name.toLowerCase()%>-legend\"><% for (var i=0; i<datasets.length; i++){%><li><span style=\"background-color:<%=datasets[i].fillColor%>\"></span><%if(datasets[i].label){%><%=datasets[i].label%><%}%></li><%}%></ul>";
-Chart.defaults.global.scaleGridLineColor = "rgba(255,255,255,.10)";
+//Chart.defaults.global.scaleGridLineColor = "rgba(255,255,255,.10)";
 
 function loadData(timeframe) {
   $('#messages').html("");
@@ -29,7 +29,7 @@ function loadData(timeframe) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
     }
   });
-  
+/*
   $.ajax({
     url: '/data?time=' + timeframe + '&type=pressure',
     success: function(data) {
@@ -39,6 +39,7 @@ function loadData(timeframe) {
       $('#messages').html("<div class='" + textStatus + "'>" + textStatus + ": " + errorThrown + "</div>");
     }
   });
+  */
 }
 
 
